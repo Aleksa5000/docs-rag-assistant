@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docs Assistant</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --mute:#667085; --line:#e4e7ec; --brand:#4f46e5; --brand-soft:#eef0ff; --warn:#b54708; --warn-bg:#fffaeb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1218; --card:#171b24; --ink:#e6e9ef; --mute:#98a2b3; --line:#283040; --brand:#818cf8; --brand-soft:#1f2440; --warn:#fdb022; --warn-bg:#2a2210; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:14px 24px; background:var(--card); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:17px; margin:0; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:99px; background:var(--brand-soft); color:var(--brand); }
+  .badge.demo { background:var(--warn-bg); color:var(--warn); }
+  main { display:grid; grid-template-columns:300px 1fr; gap:16px; padding:16px 24px; max-width:1200px; margin:0 auto; height:calc(100vh - 56px); }
+  aside, .chat { background:var(--card); border:1px solid var(--line); border-radius:12px; display:flex; flex-direction:column; min-height:0; }
+  aside { padding:16px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); margin:0 0 10px; }
+  .drop { border:1.5px dashed var(--line); border-radius:10px; padding:14px; text-align:center; color:var(--mute); cursor:pointer; font-size:13px; }
+  .drop.over, .drop:hover { border-color:var(--brand); color:var(--brand); }
+  #docs { list-style:none; padding:0; margin:14px 0 0; overflow:auto; flex:1; }
+  #docs li { display:flex; justify-content:space-between; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  #docs small { color:var(--mute); display:block; }
+  #docs button { border:0; background:none; color:var(--mute); cursor:pointer; font-size:16px; }
+  #docs button:hover { color:#d92d20; }
+  #msg { font-size:12px; margin-top:8px; min-height:16px; color:var(--mute); }
+  #msg.err { color:#d92d20; }
+  #log { flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; gap:14px; }
+  .bubble { max-width:80%; padding:10px 14px; border-radius:12px; white-space:pre-wrap; }
+  .user { align-self:flex-end; background:var(--brand); color:#fff; }
+  .bot { align-self:flex-start; background:var(--bg); border:1px solid var(--line); }
+  .empty { margin:auto; color:var(--mute); text-align:center; }
+  .cites { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .cite { font-size:12px; border:1px solid var(--line); background:var(--card); color:var(--brand); border-radius:99px; padding:2px 10px; cursor:pointer; }
+  .cite:hover, .cite.active { background:var(--brand-soft); border-color:var(--brand); }
+  .passage { margin-top:8px; padding:10px; font-size:13px; border-left:3px solid var(--brand); background:var(--brand-soft); border-radius:6px; white-space:pre-wrap; }
+  form { display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
+  input[type=text], input[type=password] { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
+  button.send { padding:10px 18px; border:0; border-radius:8px; background:var(--brand); color:#fff; font:inherit; cursor:pointer; }
+  button.send:disabled { opacity:.5; cursor:default; }
+  #keybox { display:none; margin-top:12px; }
+  @media (max-width:760px) { main { grid-template-columns:1fr; height:auto; padding:12px; } .chat { height:70vh; } }
+</style>
+</head>
+<body>
+<header><h1>Docs Assistant</h1><span id="mode" class="badge">...</span></header>
+<main>
+  <aside>
+    <h2>Documents</h2>
+    <label class="drop" id="drop">Drop PDF, Markdown or TXT here<br>or click to browse
+      <input id="file" type="file" accept=".pdf,.md,.txt" multiple hidden></label>
+    <div id="msg" role="status"></div>
+    <ul id="docs"></ul>
+    <div id="keybox"><h2>API key required</h2><input id="key" type="password" placeholder="X-API-Key"></div>
+  </aside>
+  <section class="chat">
+    <div id="log"><div class="empty">Upload a document, then ask a question about it.<br>Answers cite their sources.</div></div>
+    <form id="form"><input id="q" type="text" placeholder="Ask about your documents..." autocomplete="off" required maxlength="2000">
+      <button class="send" id="send">Ask</button></form>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const keyInput = $("key");
+try { keyInput.value = localStorage.getItem("apikey") || ""; } catch (e) {}
+const headers = () => keyInput.value ? { "X-API-Key": keyInput.value } : {};
+keyInput.addEventListener("change", () => { try { localStorage.setItem("apikey", keyInput.value); } catch (e) {} loadDocs(); });
+
+function say(text, err) { $("msg").textContent = text; $("msg").className = err ? "err" : ""; }
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { ...headers(), ...(opts.headers || {}) } });
+  if (r.status === 401) { $("keybox").style.display = "block"; throw new Error("API key required"); }
+  return r;
+}
+
+async function loadDocs() {
+  try {
+    const docs = await (await api("/api/documents")).json();
+    const ul = $("docs"); ul.replaceChildren();
+    docs.forEach(d => {
+      const li = el("li"); const left = el("div", "", d.filename);
+      left.append(el("small", "", d.chunks + " chunks"));
+      const del = el("button", "", "×"); del.title = "Delete"; del.setAttribute("aria-label", "Delete " + d.filename);
+      del.onclick = async () => { await api("/api/documents/" + d.id, { method: "DELETE" }); loadDocs(); };
+      li.append(left, del); ul.append(li);
+    });
+  } catch (e) { say(e.message, true); }
+}
+
+async function upload(files) {
+  for (const f of files) {
+    const fd = new FormData(); fd.append("file", f);
+    say("Uploading " + f.name + "...");
+    try {
+      const r = await api("/api/documents", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.detail || "Upload failed");
+      say("Added " + j.filename + " (" + j.chunks + " chunks)");
+    } catch (e) { say(e.message, true); }
+  }
+  loadDocs();
+}
+$("file").onchange = e => { upload(e.target.files); e.target.value = ""; };
+const drop = $("drop");
+["dragover", "dragenter"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => upload(e.dataTransfer.files));
+
+function renderCites(box, sources) {
+  box.replaceChildren();
+  const passage = el("div", "passage"); passage.hidden = true;
+  const wrap = el("div", "cites");
+  sources.forEach(s => {
+    const where = s.filename + (s.page ? " p." + s.page : " #" + s.chunk);
+    const b = el("button", "cite", "[" + s.n + "] " + where); b.type = "button";
+    b.onclick = () => {
+      const open = !passage.hidden && passage.dataset.n == s.n;
+      wrap.querySelectorAll(".cite").forEach(c => c.classList.remove("active"));
+      passage.hidden = open; passage.dataset.n = s.n; passage.textContent = s.text;
+      if (!open) b.classList.add("active");
+    };
+    wrap.append(b);
+  });
+  box.append(wrap, passage);
+}
+
+async function ask(question) {
+  const log = $("log"); log.querySelector(".empty")?.remove();
+  log.append(el("div", "bubble user", question));
+  const bot = el("div", "bubble bot"); const text = el("div"); const cites = el("div");
+  bot.append(text, cites); log.append(bot);
+  const scroll = () => { log.scrollTop = log.scrollHeight; };
+  $("send").disabled = true;
+  try {
+    const r = await api("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+    if (!r.ok) throw new Error("Request failed (" + r.status + ")");
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const block = buf.slice(0, i); buf = buf.slice(i + 2);
+        const ev = /^event: (.*)$/m.exec(block)?.[1]; const data = JSON.parse(/^data: (.*)$/m.exec(block)?.[1] || "{}");
+        if (ev === "token") text.textContent += data.text;
+        else if (ev === "sources") renderCites(cites, data.sources);
+        else if (ev === "error") text.textContent += "\n" + data.message;
+        scroll();
+      }
+    }
+  } catch (e) { text.textContent = e.message; }
+  $("send").disabled = false; scroll();
+}
+$("form").onsubmit = e => { e.preventDefault(); const q = $("q").value.trim(); if (!q) return; $("q").value = ""; ask(q); };
+
+fetch("/api/health").then(r => r.json()).then(h => {
+  const m = $("mode"); m.textContent = h.demo_mode ? "Demo mode (no API key)" : h.model; m.classList.toggle("demo", h.demo_mode);
+  if (h.auth_required) $("keybox").style.display = "block";
+}).then(loadDocs);
+</script>
+</body>
+</html>

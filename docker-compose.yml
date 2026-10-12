@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    ports: ["127.0.0.1:8000:8000"]  # loopback only; set APP_API_KEY before publishing wider
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - data:/data
+volumes:
+  data:

@@ -1,0 +1,28 @@
+Brightwave Beacon - Product FAQ (fictional product, demo data)
+
+Q: What is the Beacon?
+The Beacon is a smart air-quality sensor that measures CO2, particulate matter (PM2.5), temperature and humidity. It sends readings to the Brightwave app every 60 seconds.
+
+Q: How long does the battery last?
+The Beacon has a rechargeable 4,000 mAh battery that lasts about 14 days on a single charge with default settings. Charging from empty to full takes 3 hours over USB-C. In power-saving mode, readings are sent every 5 minutes and the battery lasts up to 40 days.
+
+Q: Is the Beacon waterproof?
+The Beacon is splash resistant (IP54) but is not designed to be submerged or used outdoors in heavy rain. Do not place it in bathrooms with direct shower spray.
+
+Q: Which Wi-Fi networks are supported?
+The Beacon connects to 2.4 GHz Wi-Fi networks only. 5 GHz networks are not supported. Enterprise networks that require certificate login are not supported either.
+
+Q: How do I reset the device?
+Hold the round button on the back for 10 seconds until the LED blinks blue. This erases Wi-Fi settings but keeps your historical data, which is stored in your Brightwave account.
+
+Q: How long is my data stored?
+Free accounts keep 30 days of history. Plus accounts keep 2 years of history and can export readings as CSV.
+
+Q: What does the red LED mean?
+A red LED means CO2 is above 1,500 ppm and the room should be ventilated. A blinking red LED means the battery is below 10 percent.
+
+Q: What is the warranty?
+Every Beacon comes with a 24-month limited warranty that covers manufacturing defects. Damage from liquids or drops is not covered.
+
+Q: Can I use the Beacon with Home Assistant?
+Yes. The Beacon supports a local MQTT feed. Enable it under Settings, Integrations in the app. The Studio edition is not required for MQTT.
