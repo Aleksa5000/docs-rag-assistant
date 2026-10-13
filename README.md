@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Aleksa5000/docs-rag-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Aleksa5000/docs-rag-assistant/actions/workflows/ci.yml)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
-![License MIT](https://img.shields.io/badge/license-MIT-green)
+![License: All rights reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey)
 
 **Chat with your company documents.** Upload PDFs, Markdown or text files, ask questions in plain English, and get answers drawn from your documents, with clickable sources (file plus page or chunk). The model is instructed to answer only from the retrieved passages and to say it couldn't find the answer otherwise; the passages it was given are shown next to every answer so a human can check it.
 
@@ -151,4 +151,4 @@ I build document Q&A, support copilots and other LLM integrations for small team
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+All rights reserved. This is a portfolio sample: you can read and run the code to evaluate my work, but you may not use it commercially, redistribute it or build on it without my written permission. See [LICENSE](LICENSE).
